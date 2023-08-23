@@ -1,7 +1,13 @@
-require("@nomicfoundation/hardhat-toolbox");
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-truffle5");
+require("@openzeppelin/hardhat-upgrades");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-gas-reporter");
+require("solidity-coverage");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
+  defaultNetwork: "base_mainnet",
   solidity: {
     compilers: [
       {
@@ -14,7 +20,7 @@ module.exports = {
         },
       },
       {
-        version: "0.8.9",
+        version: "0.8.11",
         settings: {
           optimizer: {
             enabled: true,
