@@ -6,7 +6,7 @@ async function main() {
   console.log("Deployer address", deployer.address);
 
   const MockTokens = await ethers.getContractFactory("MockToken");
-  const MasterChef = await ethers.getContractFactory('MasterChef');
+  const MasterChef = await ethers.getContractFactory('BasedFarming');
 
   // Deploy
   let test = await MockTokens.deploy("TEST", "TEST");
@@ -16,7 +16,7 @@ async function main() {
 
   
   const masterChef = await upgrades.deployProxy(MasterChef, [test.address, deployer.address, "1000000000000000000", 0]);
-  console.log('MasterChef deployed to:', masterChef.address);
+  console.log('BasedFarming deployed to:', masterChef.address);
 }
 
 main();

@@ -8,29 +8,33 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+contract BasedFarming is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    // Info of each user.
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
     }
-
+    // Info of each pool.
     struct PoolInfo {
         IERC20Upgradeable lpToken;
         uint256 allocPoint;
         uint256 lastRewardBlock;
         uint256 accBasedPerShare;
     }
-
+    // The Based TOKEN!
     IERC20Upgradeable public based;
-    address public adminaddr;
+    // Based tokens created per block.
     uint256 public basedPerBlock;
-
+    // Info of each pool.
     PoolInfo[] public poolInfo;
+    // Info of each user that stakes LP tokens.
     mapping(uint256 => mapping(address => UserInfo)) public userInfo;
+    // Total allocation poitns. Must be the sum of all allocation points in all pools.
     uint256 public totalAllocPoint;
+    // The block number when Based mining starts.
     uint256 public startBlock;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
@@ -56,16 +60,18 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(address(_adminaddr) != address(0), "Invalid admin address");
 
         based = _based;
-        adminaddr = _adminaddr;
         basedPerBlock = _basedPerBlock;
         startBlock = _startBlock;
         totalAllocPoint = 0;
     }
 
+    // return length of pool
     function poolLength() external view returns (uint256) {
         return poolInfo.length;
     }
 
+    // Add a new lp to the pool. Can only be called by the owner.
+    // XXX DO NOT add the same LP token more than once. Rewards will be messed up if you do.
     function add(
         uint256 _allocPoint,
         IERC20Upgradeable _lpToken,
@@ -88,6 +94,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         );
     }
 
+    // Update the given pool's based allocation point. Can only be called by the owner.
     function set(
         uint256 _pid,
         uint256 _allocPoint,
@@ -102,6 +109,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         poolInfo[_pid].allocPoint = _allocPoint;
     }
 
+    // Return reward multiplier over the given _from to _to block.
     function getMultiplier(
         uint256 _from,
         uint256 _to
@@ -113,6 +121,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
     }
 
+    // View function to see pending based on frontend.
     function pendingBased(
         uint256 _pid,
         address _user
@@ -137,6 +146,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return user.amount.mul(accBasedPerShare).div(1e12).sub(user.rewardDebt);
     }
 
+    // Update reward variables for all pools. Be careful of gas spending!
     function massUpdatePools() public {
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
@@ -144,6 +154,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
     }
 
+    // Update reward variables of the given pool to be up-to-date.
     function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         if (block.number <= pool.lastRewardBlock) {
@@ -165,6 +176,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         pool.lastRewardBlock = block.number;
     }
 
+    // Deposit LP tokens to BasedFaming for based allocation.
     function deposit(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -175,18 +187,23 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
                 .mul(pool.accBasedPerShare)
                 .div(1e12)
                 .sub(user.rewardDebt);
-            safeBasedTransfer(msg.sender, pending);
+            if (pending > 0) {
+                safeBasedTransfer(msg.sender, pending);
+            }
         }
-        pool.lpToken.safeTransferFrom(
-            address(msg.sender),
-            address(this),
-            _amount
-        );
-        user.amount = user.amount.add(_amount);
+        if (_amount > 0) {
+            pool.lpToken.safeTransferFrom(
+                address(msg.sender),
+                address(this),
+                _amount
+            );
+            user.amount = user.amount.add(_amount);
+        }
         user.rewardDebt = user.amount.mul(pool.accBasedPerShare).div(1e12);
         emit Deposit(msg.sender, _pid, _amount);
     }
 
+    // Withdraw LP tokens from BasedFarming.
     function withdraw(uint256 _pid, uint256 _amount) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -195,13 +212,18 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 pending = user.amount.mul(pool.accBasedPerShare).div(1e12).sub(
             user.rewardDebt
         );
-        safeBasedTransfer(msg.sender, pending);
-        user.amount = user.amount.sub(_amount);
+        if (pending > 0) {
+            safeBasedTransfer(msg.sender, pending);
+        }
+        if (_amount > 0) {
+            user.amount = user.amount.sub(_amount);
+            pool.lpToken.safeTransfer(address(msg.sender), _amount);
+        }
         user.rewardDebt = user.amount.mul(pool.accBasedPerShare).div(1e12);
-        pool.lpToken.safeTransfer(address(msg.sender), _amount);
         emit Withdraw(msg.sender, _pid, _amount);
     }
 
+    // Withdraw without caring about rewards. EMERGENCY ONLY.
     function emergencyWithdraw(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
@@ -211,6 +233,7 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         user.rewardDebt = 0;
     }
 
+    // Safe based transfer function, just in case if rounding error causes pool to not have enough Based.
     function safeBasedTransfer(address _to, uint256 _amount) internal {
         uint256 basedBal = based.balanceOf(address(this));
         if (_amount > basedBal) {
@@ -226,13 +249,6 @@ contract MasterChef is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         massUpdatePools();
         emit RewardPerBlock(_basedPerBlock, basedPerBlock);
         basedPerBlock = _basedPerBlock;
-    }
-
-    // Update admin address by the previous admin.
-    function admin(address _adminaddr) public {
-        require(msg.sender == adminaddr, "admin: wut?");
-        emit setAdmin(adminaddr, _adminaddr);
-        adminaddr = _adminaddr;
     }
 
     function _authorizeUpgrade(
