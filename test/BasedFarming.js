@@ -2,7 +2,7 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const { BigNumber } = ethers;
 
-describe('MasterChef Contract', function () {
+describe('BasedFarming Contract', function () {
   let masterChef;
   let owner;
   let user1;
@@ -16,7 +16,7 @@ describe('MasterChef Contract', function () {
   beforeEach(async () => {
     [owner, user1, user2] = await ethers.getSigners();
 
-    const MasterChef = await ethers.getContractFactory('MasterChef');
+    const MasterChef = await ethers.getContractFactory('BasedFarming');
     BasedToken = await ethers.getContractFactory('MockToken'); // Replace with your actual BasedToken contract factory
 
     lpToken = await BasedToken.deploy("LP", "LP");
