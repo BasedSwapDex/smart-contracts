@@ -48,6 +48,11 @@ contract BasedFarming is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event safeBasedReward(uint256 basedBal, uint256 amount);
     event RewardPerBlock(uint256 oldRewardPerBlock, uint256 newRewardPerBlock);
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize(
         IERC20Upgradeable _based,
         address _adminaddr,
